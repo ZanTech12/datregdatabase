@@ -7,7 +7,7 @@ import fs from "fs";
 
 const router = express.Router();
 
-// Multer setup
+// --- Multer setup ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = "uploads";
@@ -24,12 +24,30 @@ const upload = multer({ storage });
 router.post("/register", upload.single("passport"), async (req, res) => {
     try {
         const { firstName, lastName, gender, classLevel } = req.body;
+
         if (!firstName || !lastName || !gender || !classLevel) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
-        // Generate admission number DIS/2025/001
-        const year = new Date().getFullYear(); // dynamic year
+        // ✅ Validate gender, classLevel, and term against model enums
+        const allowedClasses = [
+            "KG 1", "KG 2", "Nursery 1", "Nursery 2",
+            "Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5",
+            "JSS 1", "JSS 2", "JSS 3",
+            "SSS 1", "SSS 2", "SSS 3",
+        ];
+        const allowedGenders = ["Male", "Female"];
+
+        if (!allowedClasses.includes(classLevel)) {
+            return res.status(400).json({ message: "Invalid class level" });
+        }
+
+        if (!allowedGenders.includes(gender)) {
+            return res.status(400).json({ message: "Invalid gender" });
+        }
+
+        // --- Generate Admission Number: DIS/YYYY/001 ---
+        const year = new Date().getFullYear();
         const lastStudent = await Student.findOne({ admissionNumber: { $regex: `^DIS/${year}/` } })
             .sort({ admissionNumber: -1 });
 
@@ -124,13 +142,13 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// --- Edit student (matches frontend PUT /students/:id) ---
+// --- Edit student (for updates) ---
 router.put("/:id", upload.single("passport"), async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Update fields
+        // Update fields dynamically
         Object.keys(req.body).forEach((key) => {
             student[key] = req.body[key];
         });
