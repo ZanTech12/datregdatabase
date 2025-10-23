@@ -9,6 +9,9 @@ import { fileURLToPath } from "url";
 // Routes
 import studentRoutes from "./routes/studentRoutes.js";
 
+// Models
+import Student from "./models/Student.js"; // ✅ Ensures model is registered
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);

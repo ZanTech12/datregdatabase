@@ -29,7 +29,6 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
-        // ✅ Validate gender, classLevel, and term against model enums
         const allowedClasses = [
             "KG 1", "KG 2", "Nursery 1", "Nursery 2",
             "Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5",
@@ -46,7 +45,6 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             return res.status(400).json({ message: "Invalid gender" });
         }
 
-        // --- Generate Admission Number: DIS/YYYY/001 ---
         const year = new Date().getFullYear();
         const lastStudent = await Student.findOne({ admissionNumber: { $regex: `^DIS/${year}/` } })
             .sort({ admissionNumber: -1 });
@@ -118,7 +116,6 @@ router.delete("/permanent/:id", async (req, res) => {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Remove passport file if exists
         if (student.passport) {
             const filePath = path.join("uploads", student.passport);
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -148,7 +145,6 @@ router.put("/:id", upload.single("passport"), async (req, res) => {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Update fields dynamically
         Object.keys(req.body).forEach((key) => {
             student[key] = req.body[key];
         });
@@ -159,6 +155,26 @@ router.put("/:id", upload.single("passport"), async (req, res) => {
         res.json(student);
     } catch (error) {
         console.error("❌ Error updating student:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// --- Additional edit route to match frontend EditStudentPage.jsx ---
+router.put("/edit/:id", upload.single("passport"), async (req, res) => {
+    try {
+        const student = await Student.findById(req.params.id);
+        if (!student) return res.status(404).json({ message: "Student not found" });
+
+        Object.keys(req.body).forEach((key) => {
+            student[key] = req.body[key];
+        });
+
+        if (req.file) student.passport = req.file.filename;
+
+        await student.save();
+        res.json(student);
+    } catch (error) {
+        console.error("❌ Error editing student:", error);
         res.status(500).json({ message: error.message });
     }
 });

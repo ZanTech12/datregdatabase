@@ -47,6 +47,9 @@ const studentSchema = new mongoose.Schema(
         admissionNumber: { type: String, unique: true, required: true },
         passport: { type: String },
 
+        // ✅ New: Added phone number from RegisterStudent form
+        phoneNumber: { type: String },
+
         // Soft delete flag
         deleted: { type: Boolean, default: false },
     },
