@@ -165,6 +165,7 @@ router.put("/edit/:id", upload.single("passport"), async (req, res) => {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
+        // Update including phoneNumber and classLevel
         Object.keys(req.body).forEach((key) => {
             student[key] = req.body[key];
         });
