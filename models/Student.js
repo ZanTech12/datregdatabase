@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 const studentSchema = new mongoose.Schema(
     {
         firstName: { type: String, required: true },
-        middleName: { type: String },
+        middleName: { type: String, default: "" },
         lastName: { type: String, required: true },
         gender: { type: String, required: true, enum: ["Male", "Female"] },
         dateOfBirth: { type: Date },
@@ -17,8 +17,6 @@ const studentSchema = new mongoose.Schema(
             enum: ["Christianity", "Islam", "Other"],
             default: "Christianity",
         },
-
-        // ✅ Class levels now include Reception
         classLevel: {
             type: String,
             required: true,
@@ -42,21 +40,15 @@ const studentSchema = new mongoose.Schema(
                 "SSS 3",
             ],
         },
-
         section: { type: String },
         session: { type: String },
-
-        // ✅ Allow term to be optional to avoid validation error
         term: {
             type: String,
             enum: ["First Term", "Second Term", "Third Term", ""],
             default: "",
         },
-
         previousSchool: { type: String },
         dateOfAdmission: { type: Date },
-
-        // ✅ Auto-generate admissionNumber if not provided
         admissionNumber: {
             type: String,
             unique: true,
@@ -66,20 +58,21 @@ const studentSchema = new mongoose.Schema(
                 return `ADM-${Date.now()}-${randomNum}`;
             },
         },
-
-        // ✅ Passport image URL
         passport: { type: String },
-
-        // ✅ Phone number field (matches your frontend)
         phone: { type: String },
-
-        // ✅ Soft delete flag
         deleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
-// Index for faster searches
+// ✅ Compound index to block duplicates on First + Middle + Last Name
+// This ensures MongoDB will reject duplicate inserts at the DB level
+studentSchema.index(
+    { firstName: 1, middleName: 1, lastName: 1 },
+    { unique: true }
+);
+
+// Optional: additional index for fast searches
 studentSchema.index({ lastName: 1, firstName: 1, classLevel: 1 });
 
 const Student = mongoose.model("Student", studentSchema);

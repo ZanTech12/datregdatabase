@@ -30,7 +30,7 @@ const upload = multer({
     },
 });
 
-// === Register New Student ===
+// === Register New Student with duplicate check ===
 router.post("/register", upload.single("passport"), async (req, res) => {
     try {
         const {
@@ -58,25 +58,24 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
+        // Check for duplicate student
+        const existingStudent = await Student.findOne({
+            firstName: firstName.trim(),
+            middleName: (middleName || "").trim(),
+            lastName: lastName.trim(),
+        });
+
+        if (existingStudent) {
+            return res
+                .status(400)
+                .json({ message: "Student already exists with this name" });
+        }
+
         // Allowed options
         const allowedClasses = [
-            "Reception",
-            "KG 1",
-            "KG 2",
-            "Nursery 1",
-            "Nursery 2",
-            "Primary 1",
-            "Primary 2",
-            "Primary 3",
-            "Primary 4",
-            "Primary 5",
-            "Primary 6",
-            "JSS 1",
-            "JSS 2",
-            "JSS 3",
-            "SSS 1",
-            "SSS 2",
-            "SSS 3",
+            "Reception", "KG 1", "KG 2", "Nursery 1", "Nursery 2",
+            "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
+            "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"
         ];
         const allowedGenders = ["Male", "Female"];
         const allowedTerms = ["First Term", "Second Term", "Third Term"];
@@ -110,9 +109,9 @@ router.post("/register", upload.single("passport"), async (req, res) => {
 
         // Create student record
         const student = new Student({
-            firstName,
-            middleName: middleName || "",
-            lastName,
+            firstName: firstName.trim(),
+            middleName: (middleName || "").trim(),
+            lastName: lastName.trim(),
             gender,
             classLevel,
             dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
@@ -123,27 +122,32 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             religion,
             section,
             session,
-            term: term || "", // ✅ allow empty term
+            term: term || "",
             previousSchool,
             dateOfAdmission: dateOfAdmission ? new Date(dateOfAdmission) : null,
-            phone, // ✅ renamed from phoneNumber
+            phone,
             admissionNumber,
             passport: req.file ? req.file.filename : null,
         });
 
         await student.save();
-        res
-            .status(201)
-            .json({ message: "Student registered successfully", student });
+        res.status(201).json({ message: "Student registered successfully", student });
     } catch (error) {
         console.error("❌ Error registering student:", error);
-        res
-            .status(500)
-            .json({ message: "Error registering student", details: error.message });
+
+        // Handle Mongo duplicate key error for extra safety
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: "Duplicate entry detected, student already exists",
+                details: error.message,
+            });
+        }
+
+        res.status(500).json({ message: "Error registering student", details: error.message });
     }
 });
 
-// === Get all non-deleted students ===
+// === Rest of your routes remain unchanged ===
 router.get("/", async (req, res) => {
     try {
         const students = await Student.find({ deleted: false });
@@ -153,7 +157,6 @@ router.get("/", async (req, res) => {
     }
 });
 
-// === Get deleted students (Recycle Bin) ===
 router.get("/recyclebin", async (req, res) => {
     try {
         const deletedStudents = await Student.find({ deleted: true });
@@ -163,14 +166,9 @@ router.get("/recyclebin", async (req, res) => {
     }
 });
 
-// === Restore a student ===
 router.put("/restore/:id", async (req, res) => {
     try {
-        const student = await Student.findByIdAndUpdate(
-            req.params.id,
-            { deleted: false },
-            { new: true }
-        );
+        const student = await Student.findByIdAndUpdate(req.params.id, { deleted: false }, { new: true });
         if (!student) return res.status(404).json({ message: "Student not found" });
         res.json({ message: "Student restored", student });
     } catch (error) {
@@ -178,7 +176,6 @@ router.put("/restore/:id", async (req, res) => {
     }
 });
 
-// === Permanently delete student ===
 router.delete("/permanent/:id", async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
@@ -196,7 +193,6 @@ router.delete("/permanent/:id", async (req, res) => {
     }
 });
 
-// === Get single student ===
 router.get("/:id", async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
@@ -207,13 +203,11 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// === Edit/Update student ===
 router.put("/:id", upload.single("passport"), async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Update all fields from request body
         Object.keys(req.body).forEach((key) => {
             if (key === "dateOfBirth" || key === "dateOfAdmission") {
                 student[key] = req.body[key] ? new Date(req.body[key]) : null;
@@ -222,7 +216,6 @@ router.put("/:id", upload.single("passport"), async (req, res) => {
             }
         });
 
-        // Replace old passport if new one uploaded
         if (req.file) {
             if (student.passport) {
                 const oldPath = path.join("uploads", student.passport);
@@ -235,18 +228,19 @@ router.put("/:id", upload.single("passport"), async (req, res) => {
         res.json({ message: "Student updated successfully", student });
     } catch (error) {
         console.error("❌ Error updating student:", error);
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: "Duplicate entry detected, student already exists",
+                details: error.message,
+            });
+        }
         res.status(500).json({ message: error.message });
     }
 });
 
-// === Soft delete (move to recycle bin) ===
 router.put("/recycle/:id", async (req, res) => {
     try {
-        const student = await Student.findByIdAndUpdate(
-            req.params.id,
-            { deleted: true },
-            { new: true }
-        );
+        const student = await Student.findByIdAndUpdate(req.params.id, { deleted: true }, { new: true });
         if (!student) return res.status(404).json({ message: "Student not found" });
         res.json({ message: "Student moved to recycle bin", student });
     } catch (error) {
