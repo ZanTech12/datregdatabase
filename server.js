@@ -6,41 +6,50 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Routes
+// --- Import Routes ---
 import studentRoutes from "./routes/studentRoutes.js";
 
-// Models
-import Student from "./models/Student.js"; // ✅ Ensures model is registered
+// --- Import Models (ensures they're registered with Mongoose) ---
+import "./models/Student.js";
 
 dotenv.config();
 
+// --- Directory setup for ES Modules ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Initialize Express ---
 const app = express();
 
-// --- Middlewares ---
+// --- Middleware Setup ---
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded images
+// --- Serve Uploaded Files ---
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// --- Routes ---
+// --- API Routes ---
 app.use("/api/students", studentRoutes);
 
-// Default route
-app.get("/", (req, res) => res.send("📚 Student Management API running..."));
+// --- Root Route ---
+app.get("/", (req, res) => {
+    res.send("📚 School Management API is running...");
+});
 
-// --- MongoDB connection ---
+// --- MongoDB Connection ---
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/signupsch";
 
 mongoose
-    .connect(MONGO_URI)
-    .then(() => console.log("✅ MongoDB Connected successfully"))
-    .catch((err) => console.error("❌ MongoDB connection error:", err));
+    .connect(MONGO_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+    })
+    .then(() => console.log("✅ MongoDB Connected Successfully"))
+    .catch((err) => console.error("❌ MongoDB Connection Error:", err.message));
 
-// --- Start server ---
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// --- Start Server ---
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
