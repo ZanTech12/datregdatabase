@@ -18,7 +18,6 @@ const studentSchema = new mongoose.Schema(
             default: "Christianity",
         },
 
-        // ✅ Updated: Added "Reception" at the top of class levels
         classLevel: {
             type: String,
             required: true,
@@ -42,7 +41,6 @@ const studentSchema = new mongoose.Schema(
             ],
         },
 
-        // ✅ Section field supported
         section: { type: String },
 
         session: { type: String },
@@ -53,11 +51,9 @@ const studentSchema = new mongoose.Schema(
         previousSchool: { type: String },
         dateOfAdmission: { type: Date },
 
-        // Admission details
         admissionNumber: { type: String, unique: true, required: true },
         passport: { type: String },
 
-        // ✅ Phone number added
         phoneNumber: { type: String },
 
         // Soft delete flag

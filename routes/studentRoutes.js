@@ -36,6 +36,7 @@ router.post("/register", upload.single("passport"), async (req, res) => {
     try {
         const {
             firstName,
+            middleName,
             lastName,
             gender,
             classLevel,
@@ -59,19 +60,19 @@ router.post("/register", upload.single("passport"), async (req, res) => {
         }
 
         const allowedClasses = [
-            "Reception",
-            "KG 1", "KG 2",
-            "Nursery 1", "Nursery 2",
+            "Reception", "KG 1", "KG 2", "Nursery 1", "Nursery 2",
             "Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5",
-            "JSS 1", "JSS 2", "JSS 3",
-            "SSS 1", "SSS 2", "SSS 3",
+            "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3",
         ];
         const allowedGenders = ["Male", "Female"];
+        const allowedTerms = ["First Term", "Second Term", "Third Term"];
 
         if (!allowedClasses.includes(classLevel))
             return res.status(400).json({ message: "Invalid class level" });
         if (!allowedGenders.includes(gender))
             return res.status(400).json({ message: "Invalid gender" });
+        if (term && !allowedTerms.includes(term))
+            return res.status(400).json({ message: "Invalid term" });
 
         // Generate unique admission number for the current year
         const year = new Date().getFullYear();
@@ -94,11 +95,11 @@ router.post("/register", upload.single("passport"), async (req, res) => {
         // Create student record
         const student = new Student({
             firstName,
+            middleName: middleName || "",
             lastName,
             gender,
             classLevel,
-            middleName: req.body.middleName || "",
-            dateOfBirth,
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
             nationality,
             stateOfOrigin,
             lga,
@@ -108,7 +109,7 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             session,
             term,
             previousSchool,
-            dateOfAdmission,
+            dateOfAdmission: dateOfAdmission ? new Date(dateOfAdmission) : null,
             phoneNumber,
             admissionNumber,
             passport: req.file ? req.file.filename : null,
@@ -192,9 +193,13 @@ router.put("/:id", upload.single("passport"), async (req, res) => {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Update student fields
+        // Update all fields from request body
         Object.keys(req.body).forEach((key) => {
-            student[key] = req.body[key];
+            if (key === "dateOfBirth" || key === "dateOfAdmission") {
+                student[key] = req.body[key] ? new Date(req.body[key]) : null;
+            } else {
+                student[key] = req.body[key];
+            }
         });
 
         // Replace old passport file if new one uploaded
