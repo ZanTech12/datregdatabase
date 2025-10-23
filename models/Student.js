@@ -47,6 +47,7 @@ const studentSchema = new mongoose.Schema(
         term: {
             type: String,
             enum: ["First Term", "Second Term", "Third Term"],
+            default: ""
         },
         previousSchool: { type: String },
         dateOfAdmission: { type: Date },
