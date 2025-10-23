@@ -11,13 +11,14 @@ const studentSchema = new mongoose.Schema(
         nationality: { type: String },
         stateOfOrigin: { type: String },
         lga: { type: String },
-        homeAddress: { type: String },
+        homeAddress: { type: String, required: true },
         religion: {
             type: String,
             enum: ["Christianity", "Islam", "Other"],
             default: "Christianity",
         },
 
+        // ✅ Class levels now include Reception
         classLevel: {
             type: String,
             required: true,
@@ -27,11 +28,12 @@ const studentSchema = new mongoose.Schema(
                 "KG 2",
                 "Nursery 1",
                 "Nursery 2",
-                "Basic 1",
-                "Basic 2",
-                "Basic 3",
-                "Basic 4",
-                "Basic 5",
+                "Primary 1",
+                "Primary 2",
+                "Primary 3",
+                "Primary 4",
+                "Primary 5",
+                "Primary 6",
                 "JSS 1",
                 "JSS 2",
                 "JSS 3",
@@ -42,28 +44,42 @@ const studentSchema = new mongoose.Schema(
         },
 
         section: { type: String },
-
         session: { type: String },
+
+        // ✅ Allow term to be optional to avoid validation error
         term: {
             type: String,
-            enum: ["First Term", "Second Term", "Third Term"],
-            default: ""
+            enum: ["First Term", "Second Term", "Third Term", ""],
+            default: "",
         },
+
         previousSchool: { type: String },
         dateOfAdmission: { type: Date },
 
-        admissionNumber: { type: String, unique: true, required: true },
+        // ✅ Auto-generate admissionNumber if not provided
+        admissionNumber: {
+            type: String,
+            unique: true,
+            required: true,
+            default: function () {
+                const randomNum = Math.floor(1000 + Math.random() * 9000);
+                return `ADM-${Date.now()}-${randomNum}`;
+            },
+        },
+
+        // ✅ Passport image URL
         passport: { type: String },
 
-        phoneNumber: { type: String },
+        // ✅ Phone number field (matches your frontend)
+        phone: { type: String },
 
-        // Soft delete flag
+        // ✅ Soft delete flag
         deleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
-// Optional: Add index for faster search by name or class
+// Index for faster searches
 studentSchema.index({ lastName: 1, firstName: 1, classLevel: 1 });
 
 const Student = mongoose.model("Student", studentSchema);
