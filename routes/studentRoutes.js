@@ -1,4 +1,3 @@
-// routes/studentRoutes.js
 import express from "express";
 import Student from "../models/Student.js";
 import multer from "multer";
@@ -51,7 +50,7 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             term,
             previousSchool,
             dateOfAdmission,
-            phoneNumber,
+            phone,
         } = req.body;
 
         // Validate required fields
@@ -59,10 +58,25 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
+        // Allowed options
         const allowedClasses = [
-            "Reception", "KG 1", "KG 2", "Nursery 1", "Nursery 2",
-            "Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5",
-            "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3",
+            "Reception",
+            "KG 1",
+            "KG 2",
+            "Nursery 1",
+            "Nursery 2",
+            "Primary 1",
+            "Primary 2",
+            "Primary 3",
+            "Primary 4",
+            "Primary 5",
+            "Primary 6",
+            "JSS 1",
+            "JSS 2",
+            "JSS 3",
+            "SSS 1",
+            "SSS 2",
+            "SSS 3",
         ];
         const allowedGenders = ["Male", "Female"];
         const allowedTerms = ["First Term", "Second Term", "Third Term"];
@@ -74,7 +88,7 @@ router.post("/register", upload.single("passport"), async (req, res) => {
         if (term && !allowedTerms.includes(term))
             return res.status(400).json({ message: "Invalid term" });
 
-        // Generate unique admission number for the current year
+        // Generate unique admission number per year
         const year = new Date().getFullYear();
         const lastStudent = await Student.findOne({
             admissionNumber: { $regex: `^DIS/${year}/` },
@@ -87,7 +101,9 @@ router.post("/register", upload.single("passport"), async (req, res) => {
         }
 
         if (nextNumber > 999) {
-            return res.status(400).json({ message: "Maximum number of students for this year reached" });
+            return res
+                .status(400)
+                .json({ message: "Maximum number of students for this year reached" });
         }
 
         const admissionNumber = `DIS/${year}/${String(nextNumber).padStart(3, "0")}`;
@@ -107,19 +123,23 @@ router.post("/register", upload.single("passport"), async (req, res) => {
             religion,
             section,
             session,
-            term,
+            term: term || "", // ✅ allow empty term
             previousSchool,
             dateOfAdmission: dateOfAdmission ? new Date(dateOfAdmission) : null,
-            phoneNumber,
+            phone, // ✅ renamed from phoneNumber
             admissionNumber,
             passport: req.file ? req.file.filename : null,
         });
 
         await student.save();
-        res.status(201).json({ message: "Student registered successfully", student });
+        res
+            .status(201)
+            .json({ message: "Student registered successfully", student });
     } catch (error) {
         console.error("❌ Error registering student:", error);
-        res.status(500).json({ message: "Error registering student", details: error.message });
+        res
+            .status(500)
+            .json({ message: "Error registering student", details: error.message });
     }
 });
 
@@ -202,7 +222,7 @@ router.put("/:id", upload.single("passport"), async (req, res) => {
             }
         });
 
-        // Replace old passport file if new one uploaded
+        // Replace old passport if new one uploaded
         if (req.file) {
             if (student.passport) {
                 const oldPath = path.join("uploads", student.passport);
