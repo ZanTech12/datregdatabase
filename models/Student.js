@@ -12,13 +12,18 @@ const studentSchema = new mongoose.Schema(
         stateOfOrigin: { type: String },
         lga: { type: String },
         homeAddress: { type: String },
-        religion: { type: String, enum: ["Christianity", "Islam", "Other"], default: "Christianity" },
+        religion: {
+            type: String,
+            enum: ["Christianity", "Islam", "Other"],
+            default: "Christianity",
+        },
 
-        // ✅ Updated: Expanded and validated class levels
+        // ✅ Updated: Added "Reception" at the top of class levels
         classLevel: {
             type: String,
             required: true,
             enum: [
+                "Reception",
                 "KG 1",
                 "KG 2",
                 "Nursery 1",
@@ -37,9 +42,14 @@ const studentSchema = new mongoose.Schema(
             ],
         },
 
+        // ✅ Section field supported
         section: { type: String },
+
         session: { type: String },
-        term: { type: String, enum: ["First Term", "Second Term", "Third Term"] },
+        term: {
+            type: String,
+            enum: ["First Term", "Second Term", "Third Term"],
+        },
         previousSchool: { type: String },
         dateOfAdmission: { type: Date },
 
@@ -47,7 +57,7 @@ const studentSchema = new mongoose.Schema(
         admissionNumber: { type: String, unique: true, required: true },
         passport: { type: String },
 
-        // ✅ New field: phone number
+        // ✅ Phone number added
         phoneNumber: { type: String },
 
         // Soft delete flag

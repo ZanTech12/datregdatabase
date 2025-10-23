@@ -7,7 +7,7 @@ import fs from "fs";
 
 const router = express.Router();
 
-// --- Multer setup ---
+// === Multer Setup (with validation) ===
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = "uploads";
@@ -18,36 +18,66 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
     },
 });
-const upload = multer({ storage });
 
-// --- Register New Student ---
+const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
+    fileFilter: (req, file, cb) => {
+        const allowed = /jpeg|jpg|png/;
+        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+        const mime = allowed.test(file.mimetype);
+        if (ext && mime) cb(null, true);
+        else cb(new Error("Only .jpg, .jpeg, or .png images are allowed"));
+    },
+});
+
+// === Register New Student ===
 router.post("/register", upload.single("passport"), async (req, res) => {
     try {
-        const { firstName, lastName, gender, classLevel } = req.body;
+        const {
+            firstName,
+            lastName,
+            gender,
+            classLevel,
+            dateOfBirth,
+            nationality,
+            stateOfOrigin,
+            lga,
+            homeAddress,
+            religion,
+            section,
+            session,
+            term,
+            previousSchool,
+            dateOfAdmission,
+            phoneNumber,
+        } = req.body;
 
+        // Validate required fields
         if (!firstName || !lastName || !gender || !classLevel) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
         const allowedClasses = [
-            "KG 1", "KG 2", "Nursery 1", "Nursery 2",
+            "Reception",
+            "KG 1", "KG 2",
+            "Nursery 1", "Nursery 2",
             "Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5",
             "JSS 1", "JSS 2", "JSS 3",
             "SSS 1", "SSS 2", "SSS 3",
         ];
         const allowedGenders = ["Male", "Female"];
 
-        if (!allowedClasses.includes(classLevel)) {
+        if (!allowedClasses.includes(classLevel))
             return res.status(400).json({ message: "Invalid class level" });
-        }
-
-        if (!allowedGenders.includes(gender)) {
+        if (!allowedGenders.includes(gender))
             return res.status(400).json({ message: "Invalid gender" });
-        }
 
+        // Generate unique admission number for the current year
         const year = new Date().getFullYear();
-        const lastStudent = await Student.findOne({ admissionNumber: { $regex: `^DIS/${year}/` } })
-            .sort({ admissionNumber: -1 });
+        const lastStudent = await Student.findOne({
+            admissionNumber: { $regex: `^DIS/${year}/` },
+        }).sort({ admissionNumber: -1 });
 
         let nextNumber = 1;
         if (lastStudent && lastStudent.admissionNumber) {
@@ -61,21 +91,38 @@ router.post("/register", upload.single("passport"), async (req, res) => {
 
         const admissionNumber = `DIS/${year}/${String(nextNumber).padStart(3, "0")}`;
 
+        // Create student record
         const student = new Student({
-            ...req.body,
+            firstName,
+            lastName,
+            gender,
+            classLevel,
+            middleName: req.body.middleName || "",
+            dateOfBirth,
+            nationality,
+            stateOfOrigin,
+            lga,
+            homeAddress,
+            religion,
+            section,
+            session,
+            term,
+            previousSchool,
+            dateOfAdmission,
+            phoneNumber,
             admissionNumber,
             passport: req.file ? req.file.filename : null,
         });
 
         await student.save();
-        res.status(201).json(student);
+        res.status(201).json({ message: "Student registered successfully", student });
     } catch (error) {
         console.error("❌ Error registering student:", error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: "Error registering student", details: error.message });
     }
 });
 
-// --- Get all non-deleted students ---
+// === Get all non-deleted students ===
 router.get("/", async (req, res) => {
     try {
         const students = await Student.find({ deleted: false });
@@ -85,7 +132,7 @@ router.get("/", async (req, res) => {
     }
 });
 
-// --- Get deleted students for recycle bin ---
+// === Get deleted students (Recycle Bin) ===
 router.get("/recyclebin", async (req, res) => {
     try {
         const deletedStudents = await Student.find({ deleted: true });
@@ -95,7 +142,7 @@ router.get("/recyclebin", async (req, res) => {
     }
 });
 
-// --- Restore student from recycle bin ---
+// === Restore a student ===
 router.put("/restore/:id", async (req, res) => {
     try {
         const student = await Student.findByIdAndUpdate(
@@ -110,7 +157,7 @@ router.put("/restore/:id", async (req, res) => {
     }
 });
 
-// --- Permanently delete student ---
+// === Permanently delete student ===
 router.delete("/permanent/:id", async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
@@ -128,7 +175,7 @@ router.delete("/permanent/:id", async (req, res) => {
     }
 });
 
-// --- Get single student ---
+// === Get single student ===
 router.get("/:id", async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
@@ -139,48 +186,35 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// --- Edit student (for updates) ---
+// === Edit/Update student ===
 router.put("/:id", upload.single("passport"), async (req, res) => {
     try {
         const student = await Student.findById(req.params.id);
         if (!student) return res.status(404).json({ message: "Student not found" });
 
+        // Update student fields
         Object.keys(req.body).forEach((key) => {
             student[key] = req.body[key];
         });
 
-        if (req.file) student.passport = req.file.filename;
+        // Replace old passport file if new one uploaded
+        if (req.file) {
+            if (student.passport) {
+                const oldPath = path.join("uploads", student.passport);
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+            student.passport = req.file.filename;
+        }
 
         await student.save();
-        res.json(student);
+        res.json({ message: "Student updated successfully", student });
     } catch (error) {
         console.error("❌ Error updating student:", error);
         res.status(500).json({ message: error.message });
     }
 });
 
-// --- Additional edit route to match frontend EditStudentPage.jsx ---
-router.put("/edit/:id", upload.single("passport"), async (req, res) => {
-    try {
-        const student = await Student.findById(req.params.id);
-        if (!student) return res.status(404).json({ message: "Student not found" });
-
-        // Update including phoneNumber and classLevel
-        Object.keys(req.body).forEach((key) => {
-            student[key] = req.body[key];
-        });
-
-        if (req.file) student.passport = req.file.filename;
-
-        await student.save();
-        res.json(student);
-    } catch (error) {
-        console.error("❌ Error editing student:", error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// --- Soft delete (move to recycle bin) ---
+// === Soft delete (move to recycle bin) ===
 router.put("/recycle/:id", async (req, res) => {
     try {
         const student = await Student.findByIdAndUpdate(
