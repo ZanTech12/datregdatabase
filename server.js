@@ -21,36 +21,10 @@ const __dirname = path.dirname(__filename);
 // --- Initialize Express ---
 const app = express();
 
-// --- Vercel / External Access CORS Setup ---
-const allowedOrigins = [
-    "https://dislform.vercel.app", // <-- your Vercel frontend URL without trailing slash
-    "http://localhost:3000"        // optional: keep local frontend working
-];
-
-app.use(
-    cors({
-        origin: (origin, callback) => {
-            // allow requests with no origin (like Postman or curl)
-            if (!origin) return callback(null, true);
-            if (allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-            } else {
-                callback(new Error(`❌ Not allowed by CORS: ${origin}`));
-            }
-        },
-        credentials: true,
-    })
-);
-
 // --- Middleware Setup ---
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// --- Optional: log external requests ---
-app.use((req, res, next) => {
-    console.log(`🌐 ${req.method} ${req.originalUrl} from ${req.ip}`);
-    next();
-});
 
 // --- Serve Uploaded Files ---
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -79,11 +53,14 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/signupsch";
 
 mongoose
-    .connect(MONGO_URI)
+    .connect(MONGO_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+    })
     .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch((err) => console.error("❌ MongoDB Connection Error:", err.message));
 
 // --- Start Server ---
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
