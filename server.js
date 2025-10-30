@@ -23,7 +23,7 @@ const app = express();
 
 // --- Vercel / External Access CORS Setup ---
 const allowedOrigins = [
-    "https://your-vercel-frontend.vercel.app" // <-- replace with your Vercel frontend URL
+    "https://https://dislform.vercel.app/" // <-- replace with your Vercel frontend URL
 ];
 
 app.use(
