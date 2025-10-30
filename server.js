@@ -23,16 +23,19 @@ const app = express();
 
 // --- Vercel / External Access CORS Setup ---
 const allowedOrigins = [
-    "https://https://dislform.vercel.app/" // <-- replace with your Vercel frontend URL
+    "https://dislform.vercel.app", // <-- your Vercel frontend URL without trailing slash
+    "http://localhost:3000"        // optional: keep local frontend working
 ];
 
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            // allow requests with no origin (like Postman or curl)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.indexOf(origin) !== -1) {
                 callback(null, true);
             } else {
-                callback(new Error("Not allowed by CORS"));
+                callback(new Error(`❌ Not allowed by CORS: ${origin}`));
             }
         },
         credentials: true,
@@ -81,6 +84,6 @@ mongoose
     .catch((err) => console.error("❌ MongoDB Connection Error:", err.message));
 
 // --- Start Server ---
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
